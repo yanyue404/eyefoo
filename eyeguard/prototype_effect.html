@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<!--
+PROTOTYPE — 用完即删。
+护眼计时的三个界面变体，用 ?variant=A|B|C 切换。双击这个文件就能打开。
+没有现有页面可挂，所以这是一次性的 HTML，不是正式界面。
+问题：同一轮计时、变暗、变暖和休息遮罩，用哪种布局更能看见效果。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>护眼计时原型 ?variant=A</title>
+  <style>
+    :root {
+      --chrome: #14120f;
+      --ink: #f6f1e8;
+      --gold: #f5c451;
+      --rest: #1a120c;
+      --cream: #f3e6d4;
+      --clock: #f6c98a;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--chrome);
+      color: var(--ink);
+      font-family: "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    }
+    button, input { font-family: inherit; }
+    .banner { padding: 12px 16px 0; }
+    .banner h1 { margin: 0; font-size: 15px; font-weight: 650; }
+    .banner p { margin: 4px 0 0; color: #c8bba6; font-size: 12px; }
+    .state { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 16px 0; font-size: 12px; }
+    .state b { color: var(--gold); font-weight: 650; margin-right: 4px; }
+    .state .full { flex-basis: 100%; }
+    .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px 10px; }
+    .tools span { color: var(--gold); font-size: 12px; font-weight: 700; }
+    .tools button, .sheet button, .modal button, .controls button {
+      background: #2a261f;
+      color: var(--ink);
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .tools label { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+    #stage { flex: 1; min-height: 520px; margin: 0 12px 84px; position: relative; }
+    .variant { display: none; height: 100%; }
+    .variant.is-on { display: block; }
+    [hidden] { display: none !important; }
+
+    .desktop { position: relative; height: 100%; background: #c9d7ce; overflow: hidden; }
+    .scene { position: absolute; inset: 0; filter: url(#gamma); }
+    .win {
+      position: absolute;
+      background: #fffdf8;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 12px 28px rgba(28, 40, 32, 0.12);
+    }
+    .win-note { left: 28px; top: 28px; width: 42%; bottom: 52px; background: #e7f0f8; }
+    .win-web { right: 28px; top: 58px; width: 44%; bottom: 64px; }
+    .win header { height: 34px; display: flex; align-items: center; padding: 0 12px; color: #f4f8e6; font-size: 12px; }
+    .win-note header { background: #315c45; }
+    .win-web header { background: #3d4d63; }
+    .win .body { padding: 16px 18px; color: #24302a; font-size: 14px; line-height: 1.7; }
+    .win h2 { margin: 0 0 8px; font-size: 18px; }
+    .red { color: #a33b24; }
+    .blue { color: #2458a8; }
+    .taskbar {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
+      background: #24362c; color: #e7f2df; display: flex; align-items: center; padding: 0 14px; font-size: 12px;
+    }
+    #lemon { position: absolute; z-index: 3; top: 24px; right: 24px; cursor: grab; touch-action: none; filter: drop-shadow(0 10px 16px rgba(0,0,0,.16)); }
+    #lemon:active { cursor: grabbing; }
+    #show-lemon {
+      position: absolute; z-index: 4; left: 16px; top: 16px;
+      background: #f4f8e6; color: #2c4a12; border: 0; padding: 8px 12px; cursor: pointer;
+    }
+    .veil {
+      position: absolute; inset: 0; z-index: 7; background: var(--rest); color: var(--cream);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px;
+    }
+    .veil h2 { margin: 0 0 8px; font-size: 28px; }
+    .veil .big { margin: 0; font-size: 52px; font-weight: 750; color: var(--clock); }
+    .veil .tip { margin: 16px 0; font-size: 16px; color: #e7d7c4; }
+    .veil .hint { margin: 0 0 18px; font-size: 12px; color: #b7a898; }
+    .veil button, .card button {
+      background: var(--cream); color: var(--rest); border: 0; padding: 8px 18px; margin: 0 6px; cursor: pointer; font-size: 14px;
+    }
+    .lamp { z-index: 8; background: #000; color: #6e6e6e; cursor: pointer; font-size: 14px; }
+    .sheet {
+      position: absolute; z-index: 6; left: 50%; top: 42px; transform: translateX(-50%);
+      width: min(420px, calc(100% - 32px)); background: #f6f1ea; color: #2c241c; padding: 16px 18px 14px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.18);
+    }
+    .sheet h3 { margin: 0 0 8px; font-size: 16px; }
+    .sheet p, .controls .note { margin: 0 0 8px; font-size: 12px; color: #6a5b48; }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 8px; }
+    .sheet label, .controls label { font-size: 13px; }
+    .slider { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .slider input { flex: 1; }
+
+    .console { height: 100%; display: grid; grid-template-columns: 220px minmax(0, 1fr) 240px; background: #e6ded0; }
+    .timeline, .controls { background: #f7f1e6; color: #2c241c; padding: 16px 14px; display: flex; flex-direction: column; min-height: 0; }
+    .timeline h2, .controls h2 { margin: 0; font-size: 14px; }
+    .track-wrap { position: relative; flex: 1; margin-top: 18px; min-height: 280px; }
+    .tlab { position: absolute; left: 0; transform: translateY(-50%); font-size: 13px; }
+    .track { position: absolute; left: 74px; top: 0; bottom: 0; width: 28px; }
+    .track i { position: absolute; left: 0; width: 28px; }
+    #bar-work { background: #7cb342; }
+    #bar-warn { background: #e65100; }
+    #bar-rest { background: #f0c27a; }
+    #playhead { position: absolute; left: 108px; width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent #1a120c; transform: translateY(-50%); }
+    #play-clock { position: absolute; left: 16px; top: -8px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .page-wrap { position: relative; min-width: 0; }
+    .page {
+      position: absolute; inset: 16px; overflow: auto; background: #fffdf8; color: #2a2622;
+      padding: 28px 32px; filter: url(#gamma);
+    }
+    .page h2 { margin: 0 0 12px; font-size: 22px; }
+    .page p { margin: 0 0 10px; line-height: 1.7; }
+    .card {
+      position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: min(420px, calc(100% - 48px)); background: var(--rest); color: var(--cream); text-align: center; padding: 22px 20px 16px;
+    }
+    .card .big { margin: 6px 0; font-size: 40px; color: var(--clock); font-weight: 750; }
+    .page-lamp {
+      position: absolute; inset: 16px; z-index: 3; background: #000; color: #6e6e6e;
+      display: grid; place-items: center; text-align: center; cursor: pointer;
+    }
+    .controls button { display: block; width: 100%; margin-top: 6px; border-radius: 8px; background: #fffaf3; color: #2c241c; }
+    .tracklet { display: inline-block; width: 108px; height: 8px; background: #e5dfd4; vertical-align: middle; }
+    .tracklet i { display: block; height: 100%; }
+    #g-r { background: #d64545; }
+    #g-g { background: #7cb342; }
+    #g-b { background: #3d7ec8; }
+    .gain-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 3px 0; }
+
+    .theater { position: relative; height: 100%; overflow: hidden; background: #8fb7d6; }
+    .sky, .horizon, .deskband { position: absolute; left: 0; right: 0; filter: url(#gamma); }
+    .sky { top: 0; height: 46%; background: linear-gradient(#6ea4cb, #c5dff0); }
+    .sun { position: absolute; right: 18%; top: 28%; width: 72px; height: 72px; border-radius: 50%; background: #ffe08a; }
+    .horizon { top: 46%; height: 16%; background: linear-gradient(#f3d7b4, #e4c093); }
+    .deskband { top: 62%; bottom: 0; background: #d7c4a8; color: #2c241c; padding: 54px 36px; }
+    .deskband .clock { margin: 0; font-size: 48px; font-weight: 750; }
+    .deskband .phase { margin: 6px 0 0; font-size: 16px; }
+    .c-progress { position: absolute; z-index: 2; left: 0; right: 0; top: 0; height: 8px; }
+    .c-progress i { display: block; height: 100%; width: 0; background: #2e7d32; }
+    .c-warn { position: absolute; z-index: 2; top: 18%; left: 0; right: 150px; text-align: center; font-size: 32px; font-weight: 750; color: #7a2e00; margin: 0; }
+    .rest-c, .lamp-c { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .rest-c { background: var(--rest); color: var(--cream); }
+    .rest-c h2 { margin: 0; font-size: 32px; font-weight: 650; }
+    .rest-c .big { margin: 12px 0; font-size: 84px; line-height: 1; color: var(--clock); font-weight: 750; }
+    .rest-c .tip { margin: 0; font-size: 18px; color: #e7d7c4; }
+    .lamp-c { background: #000; color: #6e6e6e; cursor: pointer; }
+    .edge { position: absolute; z-index: 4; right: 22px; bottom: 28px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .edge button { background: transparent; border: 0; font-size: 15px; cursor: pointer; padding: 3px 0; }
+
+    #menu { position: fixed; z-index: 25; min-width: 156px; background: #fff; color: #1b1b1b; border: 1px solid #d5d5d5; box-shadow: 0 10px 24px rgba(0,0,0,.16); padding: 4px 0; }
+    #menu button { display: block; width: 100%; text-align: left; background: transparent; border: 0; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+    #menu button:hover, #menu button.is-on { background: #e7f0dc; }
+    #menu hr { border: 0; border-top: 1px solid #eee; margin: 4px 0; }
+    .switcher {
+      position: fixed; z-index: 30; left: 50%; bottom: 14px; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px; background: #0c0b09; color: #fff;
+      border: 1px solid var(--gold); border-radius: 999px; padding: 6px 8px 6px 14px;
+      box-shadow: 0 12px 28px rgba(0,0,0,.35);
+    }
+    .switcher .tag { color: var(--gold); font-size: 12px; font-weight: 750; }
+    .switcher button { width: 36px; height: 32px; border: 0; border-radius: 999px; background: var(--gold); color: #1a120c; font-weight: 750; cursor: pointer; }
+    #variant-label { min-width: 11em; text-align: center; font-size: 14px; }
+    .modal { position: fixed; inset: 0; z-index: 40; background: rgba(20,18,15,.48); display: grid; place-items: center; }
+    .modal-card { width: min(360px, calc(100% - 32px)); background: #f6f1ea; color: #2c241c; padding: 20px 20px 16px; }
+    .modal-card p { margin: 0; line-height: 1.6; }
+    .modal-card .row { margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="gamma" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feColorMatrix id="gamma-matrix" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+    </filter>
+  </svg>
+
+  <header class="banner">
+    <h1>原型，看完可丢。问题：同一轮计时、变暗、变暖和休息遮罩，用哪种布局更能看见效果？</h1>
+    <p>方案名是正式的分钟。这一页把一轮收成大约一分钟，休息至少留 12 秒。左右方向键切换。变暗和暖色只发生在这个页面里，不会改你的显示器。</p>
+  </header>
+
+  <section class="state" id="state" aria-live="polite">
+    <span><b>阶段</b><i id="s-phase"></i></span>
+    <span><b>剩余</b><i id="s-clock"></i></span>
+    <span><b>方案</b><i id="s-scheme"></i></span>
+    <span><b>推迟</b><i id="s-postpone"></i></span>
+    <span><b>亮度</b><i id="s-bright"></i></span>
+    <span><b>暖色</b><i id="s-warm"></i></span>
+    <span><b>通道</b><i id="s-gains"></i></span>
+    <span><b>关灯</b><i id="s-lamp"></i></span>
+    <span><b>皮肤</b><i id="s-skin"></i></span>
+    <span><b>大小</b><i id="s-size"></i></span>
+    <span><b>暂停</b><i id="s-pause"></i></span>
+    <span><b>悬浮窗</b><i id="s-float"></i></span>
+    <span class="full"><b>眼保健</b><i id="s-exercise"></i></span>
+    <span class="full"><b>刚刚</b><i id="s-last"></i></span>
+  </section>
+
+  <div class="tools">
+    <span>演示</span>
+    <button type="button" data-act="preview">看屏幕效果</button>
+    <button type="button" data-act="reset-screen">恢复原色</button>
+    <button type="button" data-act="jump-warn">跳到即将休息</button>
+    <label><input id="away" type="checkbox">假装离开</label>
+    <label><input id="full" type="checkbox">假装全屏</label>
+  </div>
+
+  <main id="stage">
+    <section class="variant" data-variant="A">
+      <div class="desktop">
+        <div class="scene">
+          <article class="win win-note">
+            <header>笔记</header>
+            <div class="body">
+              <h2>下午要交的提纲</h2>
+              <p>先写完这一段，再离开屏幕。</p>
+              <p class="red">这行是红色。暖色拉高时，它主要只变暗。</p>
+              <p class="blue">这行是蓝色。暖色会把蓝通道再压低，字先发灰。</p>
+            </div>
+          </article>
+          <article class="win win-web">
+            <header>浏览器</header>
+            <div class="body">
+              <h2>正在看的文章</h2>
+              <p>白纸会跟着亮度变灰，暖色拉高以后发黄。</p>
+              <p class="red">红通道增益 = 亮度。</p>
+              <p class="blue">蓝通道增益 = 亮度 ×（1 − 0.55 × 暖色）。</p>
+            </div>
+          </article>
+          <footer class="taskbar">右键柠檬片可以休息、推迟、关灯和换皮肤。滚轮改大小。</footer>
+        </div>
+        <div id="lemon" role="img" aria-label="柠檬片悬浮窗"></div>
+        <button id="show-lemon" type="button" data-act="show-lemon" hidden>显示柠檬片</button>
+        <div id="rest-a" class="veil" hidden>
+          <h2>离开屏幕，休息一下</h2>
+          <p class="big" id="rest-clock-a">00:00</p>
+          <p class="tip" id="tip-a"></p>
+          <p class="hint">双击在真机上会关闭显示器。Ctrl+Alt+D 紧急推迟。</p>
+          <div>
+            <button type="button" data-act="postpone">紧急推迟</button>
+            <button type="button" data-act="finish">结束休息</button>
+          </div>
+        </div>
+        <div id="lamp-a" class="veil lamp" hidden>单击恢复。双击在真机上会关闭显示器。Ctrl+Alt+T</div>
+        <div id="settings" class="sheet" hidden>
+          <h3>亮度与方案</h3>
+          <p>这里的改动只留在这一页的内存里。</p>
+          <div class="choices">
+            <label><input type="radio" name="scheme-a" data-scheme="0" checked>标准 45/5</label>
+            <label><input type="radio" name="scheme-a" data-scheme="1">短时 25/5</label>
+            <label><input type="radio" name="scheme-a" data-scheme="2">长时 60/10</label>
+          </div>
+          <div class="slider"><span>亮度</span><input data-slider="brightness" type="range" min="30" max="100" step="5" value="100"></div>
+          <div class="slider"><span>暖色</span><input data-slider="warmth" type="range" min="0" max="100" step="5" value="0"></div>
+          <button type="button" data-act="close-settings">关闭</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="variant" data-variant="B">
+      <div class="console">
+        <aside class="timeline">
+          <h2>这一轮</h2>
+          <div class="track-wrap">
+            <span class="tlab" id="lab-work">工作</span>
+            <span class="tlab" id="lab-warn">将休</span>
+            <span class="tlab" id="lab-rest">休息</span>
+            <div class="track">
+              <i id="bar-work"></i>
+              <i id="bar-warn"></i>
+              <i id="bar-rest"></i>
+            </div>
+            <b id="playhead"><em id="play-clock"></em></b>
+          </div>
+        </aside>
+        <div class="page-wrap">
+          <article class="page">
+            <h2>正在看的文章</h2>
+            <p>时间轴留在左边，这一页负责让你看见屏幕效果。</p>
+            <p class="red">这行是红色。亮度下降时它变暗，暖色几乎不再额外压它。</p>
+            <p class="blue">这行是蓝色。暖色拉高以后，蓝字会比红字更早发灰。</p>
+            <p>休息时，文章还留在卡片后面。关灯只盖住这一栏。</p>
+          </article>
+          <div id="rest-b" class="card" hidden>
+            <h2>离开屏幕，休息一下</h2>
+            <p class="big" id="rest-clock-b">00:00</p>
+            <p class="tip" id="tip-b"></p>
+            <div>
+              <button type="button" data-act="postpone">紧急推迟</button>
+              <button type="button" data-act="finish">结束休息</button>
+            </div>
+          </div>
+          <div id="lamp-b" class="page-lamp" hidden>这块页面灭了<br>时间轴还在</div>
+        </div>
+        <aside class="controls">
+          <h2>调节</h2>
+          <div class="choices">
+            <label><input type="radio" name="scheme-b" data-scheme="0" checked>标准 45/5</label>
+            <label><input type="radio" name="scheme-b" data-scheme="1">短时 25/5</label>
+            <label><input type="radio" name="scheme-b" data-scheme="2">长时 60/10</label>
+          </div>
+          <div class="slider"><span>亮度</span><input data-slider="brightness" type="range" min="30" max="100" step="5" value="100"></div>
+          <div class="slider"><span>暖色</span><input data-slider="warmth" type="range" min="0" max="100" step="5" value="0"></div>
+          <div class="gain-row"><span>红</span><span class="tracklet"><i id="g-r"></i></span><em id="g-rt"></em></div>
+          <div class="gain-row"><span>绿</span><span class="tracklet"><i id="g-g"></i></span><em id="g-gt"></em></div>
+          <div class="gain-row"><span>蓝</span><span class="tracklet"><i id="g-b"></i></span><em id="g-bt"></em></div>
+          <p class="note">红通道只跟亮度走。暖色少压绿、多压蓝。这和正式程序写伽马表的比例一样。</p>
+          <div class="choices">
+            <label><input type="radio" name="skin-b" data-skin="green" checked>青柠</label>
+            <label><input type="radio" name="skin-b" data-skin="orange">橙片</label>
+          </div>
+          <p id="b-postpone">推迟 0 / 3</p>
+          <button type="button" data-act="rest">立即休息</button>
+          <button type="button" data-act="postpone">推迟休息</button>
+          <button type="button" data-act="pause">暂停 / 继续</button>
+          <button type="button" data-act="finish">结束休息</button>
+          <button type="button" data-act="lamp">关灯</button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="variant" data-variant="C">
+      <div class="theater">
+        <div class="sky"><div class="sun"></div></div>
+        <div class="horizon"></div>
+        <div class="deskband">
+          <p class="clock" id="c-clock">00:00</p>
+          <p class="phase" id="c-phase">工作中</p>
+        </div>
+        <div class="c-progress"><i id="c-bar"></i></div>
+        <p id="c-warn" class="c-warn" hidden>即将休息</p>
+        <div id="rest-c" class="rest-c" hidden>
+          <h2>离开屏幕，休息一下</h2>
+          <p class="big" id="c-rest-clock">00:00</p>
+          <p class="tip" id="c-tip"></p>
+        </div>
+        <div id="lamp-c" class="lamp-c" hidden>单击恢复。双击在真机上会关闭显示器。</div>
+        <div class="edge" id="edge"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="menu" hidden></div>
+  <div id="pin" class="modal" hidden>
+    <div class="modal-card">
+      <p>这一轮 3 次推迟已经用完。正式程序这时要密码。原型没有设密码。</p>
+      <div class="row">
+        <button type="button" id="pin-yes">仍然推迟</button>
+        <button type="button" id="pin-no">取消</button>
+      </div>
+    </div>
+  </div>
+  <footer class="switcher">
+    <span class="tag">原型</span>
+    <button type="button" id="prev" aria-label="上一个变体">←</button>
+    <span id="variant-label">A — 桌角柠檬</span>
+    <button type="button" id="next" aria-label="下一个变体">→</button>
+  </footer>
+
+  <script>
+    const EXERCISES = [
+      "闭眼，双手搓热后轻轻捂住双眼",
+      "眼球缓慢地向上、下、左、右看",
+      "看向六米以外，让眼睛停止对焦",
+      "自然眨眼二十次，让泪膜重新铺开"
+    ];
+    const PHASE = { work: "工作中", warn: "即将休息", rest: "休息中", paused: "已暂停" };
+    const NAMES = { A: "桌角柠檬", B: "时间轴控制台", C: "休息剧场" };
+    const SCHEMES = [["标准 45/5", 45, 5], ["短时 25/5", 25, 5], ["长时 60/10", 60, 10]];
+    const SKINS = {
+      green: { rindDeep: "#3D6B12", rind: "#7CB342", zest: "#C5E17A", pith: "#F4F8E6", pulp: "#D4EC7A", pulpDeep: "#C0E05A", membrane: "#FBFDF3", core: "#F7FBEA", ink: "#2C4A12", muted: "#4F6E28", seed: "#F3E7B4", leaf: "#2E7D32", vein: "#1B5E20", name: "青柠" },
+      orange: { rindDeep: "#E65100", rind: "#FB8C00", zest: "#FFD180", pith: "#FFF4E5", pulp: "#FFB74D", pulpDeep: "#FF9800", membrane: "#FFF9F1", core: "#FFF8F0", ink: "#BF360C", muted: "#E65100", seed: "#FFF3D6", leaf: "#689F38", vein: "#33691E", name: "橙片" }
+    };
+    const DEMO_WARN = 8;
+    const DEMO_POSTPONE = 10;
+    const POSTPONE_LIMIT = 3;
+
+    function demoLengths(workMin, restMin) {
+      return [Math.max(20, Math.min(48, workMin)), Math.max(12, Math.min(20, restMin + 7))];
+    }
+    function formatClock(seconds) {
+      const whole = Math.max(0, Math.floor(seconds + 0.999));
+      let minutes = Math.floor(whole / 60);
+      const secs = whole % 60;
+      const hours = Math.floor(minutes / 60);
+      minutes %= 60;
+      if (hours) return hours + ":" + String(minutes).padStart(2, "0") + ":" + String(secs).padStart(2, "0");
+      return String(minutes).padStart(2, "0") + ":" + String(secs).padStart(2, "0");
+    }
+    function channelGains(brightness, warmth) {
+      brightness = Math.min(1, Math.max(0.3, brightness));
+      warmth = Math.min(1, Math.max(0, warmth));
+      return [brightness, brightness * (1 - 0.20 * warmth), brightness * (1 - 0.55 * warmth)];
+    }
+    function matrixValues(brightness, warmth) {
+      const [r, g, b] = channelGains(brightness, warmth);
+      return r + " 0 0 0 0  0 " + g + " 0 0 0  0 0 " + b + " 0 0  0 0 0 1 0";
+    }
+
+    class Engine {
+      constructor(work, rest, warn, postpone) {
+        this.workSeconds = work;
+        this.restSeconds = rest;
+        this.warnSeconds = warn;
+        this.postponeSeconds = postpone;
+        this.phase = "work";
+        this.deadline = 0;
+        this.pausedLeft = 0;
+        this.warned = false;
+      }
+      startWork(now, seconds) {
+        this.phase = "work";
+        this.deadline = now + (seconds == null ? this.workSeconds : seconds);
+        this.pausedLeft = 0;
+        this.warned = false;
+      }
+      startRest(now, seconds) {
+        this.phase = "rest";
+        this.deadline = now + (seconds == null ? this.restSeconds : seconds);
+        this.pausedLeft = 0;
+        this.warned = false;
+      }
+      remaining(now) {
+        if (this.phase === "paused") return Math.max(0, this.pausedLeft);
+        return Math.max(0, this.deadline - now);
+      }
+      tick(now, activityPaused) {
+        const events = [];
+        if (this.phase === "work") {
+          if (activityPaused) {
+            this.pausedLeft = Math.max(0, this.deadline - now);
+            this.phase = "paused";
+            events.push("paused");
+            return events;
+          }
+          const left = this.deadline - now;
+          if (this.warnSeconds > 0 && left <= this.warnSeconds && left > 0 && !this.warned) {
+            this.warned = true;
+            events.push("warn");
+          }
+          if (now >= this.deadline) {
+            this.startRest(now);
+            events.push("rest_start");
+          }
+          return events;
+        }
+        if (this.phase === "paused") {
+          if (!activityPaused) {
+            this.deadline = now + this.pausedLeft;
+            this.phase = "work";
+            events.push("resumed");
+          }
+          return events;
+        }
+        if (now >= this.deadline) {
+          this.startWork(now);
+          events.push("rest_end");
+        }
+        return events;
+      }
+      postpone(now) {
+        if (this.phase === "rest") {
+          this.startWork(now, this.postponeSeconds);
+          return "postponed_rest";
+        }
+        if (this.phase === "paused") {
+          this.pausedLeft += this.postponeSeconds;
+          this.warned = false;
+          return "postponed";
+        }
+        this.deadline += this.postponeSeconds;
+        this.warned = false;
+        return "postponed";
+      }
+      finishRest(now) {
+        if (this.phase !== "rest") return false;
+        this.startWork(now);
+        return true;
+      }
+    }
+
+    class Session {
+      constructor() {
+        this.t0 = performance.now() / 1000;
+        this.schemeIndex = 0;
+        this.brightness = 1;
+        this.warmth = 0;
+        this.skin = "green";
+        this.size = 200;
+        this.postpones = 0;
+        this.manualPause = false;
+        this.away = false;
+        this.fullscreen = false;
+        this.lamp = false;
+        this.floatHidden = false;
+        this.lastEvent = "开始工作。点「看屏幕效果」或「跳到即将休息」可以直接看变化";
+        const [work, rest] = this.lengths();
+        this.engine = new Engine(work, rest, DEMO_WARN, DEMO_POSTPONE);
+        this.engine.startWork(0);
+      }
+      now() { return performance.now() / 1000 - this.t0; }
+      lengths() {
+        const scheme = SCHEMES[this.schemeIndex];
+        return demoLengths(scheme[1], scheme[2]);
+      }
+      shownPhase() {
+        const t = this.now();
+        if (this.engine.phase === "work" && this.engine.remaining(t) <= DEMO_WARN) return "warn";
+        return this.engine.phase;
+      }
+      advance() {
+        const events = this.engine.tick(this.now(), this.manualPause || this.away || this.fullscreen);
+        for (const event of events) {
+          if (event === "warn") this.lastEvent = "进入即将休息，正式程序这时会响一声";
+          else if (event === "rest_start") {
+            this.postpones = 0;
+            this.lamp = false;
+            this.lastEvent = "到点，休息遮罩盖住屏幕";
+          } else if (event === "rest_end") {
+            this.postpones = 0;
+            this.lamp = false;
+            this.lastEvent = "休息结束，开始下一轮工作";
+          } else if (event === "paused") this.lastEvent = "计时停住";
+          else if (event === "resumed") this.lastEvent = "从停住的秒数继续";
+        }
+      }
+      view() {
+        const t = this.now();
+        const phase = this.shownPhase();
+        const scheme = SCHEMES[this.schemeIndex];
+        const [work, rest] = this.lengths();
+        const gains = channelGains(this.brightness, this.warmth).map((item) => Math.round(item * 100) + "%");
+        let exercise = "休息开始后轮换";
+        if (this.engine.phase === "rest") {
+          const elapsed = this.engine.restSeconds - this.engine.remaining(t);
+          exercise = EXERCISES[Math.floor(Math.max(0, elapsed) / 8) % EXERCISES.length];
+        }
+        let floatText = "显示";
+        if (this.floatHidden) floatText = "隐藏";
+        else if (phase === "rest") floatText = "在休息遮罩下面";
+        else if (this.lamp) floatText = "在关灯下面";
+        let pauseText = "在走";
+        if (this.engine.phase === "rest") pauseText = "休息中继续计时";
+        else {
+          const reasons = [];
+          if (this.manualPause) reasons.push("手动暂停");
+          if (this.away) reasons.push("假装离开");
+          if (this.fullscreen) reasons.push("假装全屏");
+          if (reasons.length) pauseText = reasons.join("、");
+        }
+        return {
+          phase, clock: formatClock(this.engine.remaining(t)), remaining: this.engine.remaining(t),
+          schemeName: scheme[0], formal: scheme[1] + "/" + scheme[2], workSeconds: work, restSeconds: rest,
+          brightness: this.brightness, warmth: this.warmth, gains, skin: this.skin, skinName: SKINS[this.skin].name,
+          size: this.size, postpones: this.postpones, lamp: this.lamp, floatHidden: this.floatHidden,
+          exercise, pauseText, floatText, lastEvent: this.lastEvent
+        };
+      }
+      snapshot() {
+        const item = this.view();
+        return {
+          阶段: PHASE[item.phase], 剩余: item.clock, 方案: item.schemeName, 正式分钟: item.formal,
+          演示秒: item.workSeconds + "/" + item.restSeconds, 亮度: Math.round(item.brightness * 100) + "%",
+          暖色: Math.round(item.warmth * 100) + "%", 通道: "红 " + item.gains[0] + "  绿 " + item.gains[1] + "  蓝 " + item.gains[2],
+          推迟: item.postpones + "/" + POSTPONE_LIMIT, 暂停: item.pauseText, 关灯: item.lamp ? "开" : "关",
+          皮肤: item.skinName, 大小: item.size, 悬浮窗: item.floatText, 眼保健: item.exercise, 刚刚: item.lastEvent
+        };
+      }
+      setScheme(index) {
+        this.schemeIndex = Math.max(0, Math.min(SCHEMES.length - 1, index));
+        const [work, rest] = this.lengths();
+        this.engine.workSeconds = work;
+        this.engine.restSeconds = rest;
+        const t = this.now();
+        if (this.engine.phase === "work") this.engine.startWork(t);
+        else if (this.engine.phase === "rest") this.engine.startRest(t);
+        else { this.engine.pausedLeft = work; this.engine.warned = false; }
+        this.postpones = 0;
+        this.lamp = false;
+        this.lastEvent = "换了方案，这一轮按新的演示时长重新计算";
+      }
+      setScreen(brightness, warmth, note) {
+        this.brightness = Math.min(1, Math.max(0.3, brightness));
+        this.warmth = Math.min(1, Math.max(0, warmth));
+        this.lastEvent = note;
+      }
+      setSkin(skin) {
+        this.skin = skin === "orange" ? "orange" : "green";
+        this.lastEvent = "皮肤换成" + SKINS[this.skin].name;
+      }
+      setSize(size) {
+        this.size = Math.max(160, Math.min(360, Math.round(size)));
+        this.lastEvent = "柠檬片大小 " + this.size;
+      }
+      restNow() {
+        if (this.engine.phase === "rest") { this.lastEvent = "已经在休息"; return; }
+        this.manualPause = false;
+        this.engine.startRest(this.now());
+        this.lamp = false;
+        this.lastEvent = "立即休息";
+      }
+      doPostpone() {
+        const event = this.engine.postpone(this.now());
+        this.postpones += 1;
+        if (event === "postponed_rest") {
+          this.lamp = false;
+          this.lastEvent = "休息被推迟，只再给一段工作时间";
+        } else this.lastEvent = "本轮工作延长了一段推迟时间";
+      }
+      finishRest() {
+        if (!this.engine.finishRest(this.now())) { this.lastEvent = "现在不是休息"; return; }
+        this.postpones = 0;
+        this.lamp = false;
+        this.lastEvent = "提前结束休息。未设密码，直接生效";
+      }
+      togglePause() {
+        if (this.engine.phase === "rest") { this.lastEvent = "休息时不能暂停"; return; }
+        this.manualPause = !this.manualPause;
+        this.lastEvent = this.manualPause ? "手动暂停" : "取消手动暂停";
+      }
+      toggleLamp() {
+        if (this.engine.phase === "rest") { this.lastEvent = "休息遮罩还在，关灯让位"; return; }
+        this.lamp = !this.lamp;
+        this.lastEvent = this.lamp ? "关灯，纯黑遮罩" : "关灯关闭，回到计时";
+      }
+      jumpToWarn() {
+        this.manualPause = false;
+        this.away = false;
+        this.fullscreen = false;
+        this.lamp = false;
+        const t = this.now();
+        if (this.engine.phase !== "work") this.engine.startWork(t);
+        this.engine.deadline = t + DEMO_WARN;
+        this.engine.warned = false;
+        this.lastEvent = "跳到即将休息";
+      }
+    }
+
+    const session = new Session();
+    let variant = "A";
+    let lemonKey = "";
+
+    function polar(cx, cy, r, deg) {
+      const rad = deg * Math.PI / 180;
+      return [cx + Math.cos(rad) * r, cy + Math.sin(rad) * r];
+    }
+    function piePath(cx, cy, r, start, extent) {
+      const [x0, y0] = polar(cx, cy, r, start);
+      const [x1, y1] = polar(cx, cy, r, start + extent);
+      const large = extent > 180 ? 1 : 0;
+      return "M " + cx + " " + cy + " L " + x0.toFixed(2) + " " + y0.toFixed(2) + " A " + r + " " + r + " 0 " + large + " 1 " + x1.toFixed(2) + " " + y1.toFixed(2) + " Z";
+    }
+    function arcPath(cx, cy, r, start, extent) {
+      const [x0, y0] = polar(cx, cy, r, start);
+      const [x1, y1] = polar(cx, cy, r, start + extent);
+      return "M " + x0.toFixed(2) + " " + y0.toFixed(2) + " A " + r + " " + r + " 0 0 1 " + x1.toFixed(2) + " " + y1.toFixed(2);
+    }
+    function citrusSVG(skinId, warn) {
+      const skin = SKINS[skinId];
+      const parts = [
+        '<svg viewBox="0 0 240 240" width="100%" height="100%">',
+        '<circle cx="120" cy="120" r="112" fill="' + skin.rindDeep + '"/>',
+        '<circle cx="120" cy="120" r="104" fill="' + skin.rind + '"/>',
+        '<circle cx="120" cy="120" r="96" fill="' + skin.pith + '"/>'
+      ];
+      for (let index = 0; index < 10; index += 1) {
+        const fill = index % 2 === 0 ? skin.pulp : skin.pulpDeep;
+        parts.push('<path d="' + piePath(120, 120, 88, index * 36 - 90, 35.2) + '" fill="' + fill + '"/>');
+      }
+      for (let index = 0; index < 10; index += 1) {
+        const deg = index * 36 - 90;
+        const [x0, y0] = polar(120, 120, 46, deg);
+        const [x1, y1] = polar(120, 120, 90, deg);
+        parts.push('<line x1="' + x0.toFixed(2) + '" y1="' + y0.toFixed(2) + '" x2="' + x1.toFixed(2) + '" y2="' + y1.toFixed(2) + '" stroke="' + skin.membrane + '" stroke-width="3" stroke-linecap="round"/>');
+      }
+      [28, 150, 236, 318].forEach((deg) => {
+        const [x, y] = polar(120, 120, 66, deg);
+        parts.push('<ellipse cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) + '" rx="5" ry="3" fill="' + skin.seed + '"/>');
+      });
+      parts.push('<path d="' + arcPath(120, 120, 100, 48, 78) + '" fill="none" stroke="' + skin.zest + '" stroke-width="5" stroke-linecap="round"/>');
+      parts.push('<path d="M 138 34 Q 178 8 212 24 Q 168 48 138 34 Z" fill="' + skin.leaf + '"/>');
+      parts.push('<line x1="150" y1="34" x2="194" y2="18" stroke="' + skin.vein + '" stroke-width="2" stroke-linecap="round"/>');
+      if (warn) parts.push('<circle cx="120" cy="120" r="114" fill="none" stroke="#E65100" stroke-width="4"/>');
+      parts.push('<circle cx="120" cy="120" r="48" fill="' + skin.core + '" stroke="' + skin.pith + '" stroke-width="4"/>');
+      parts.push('<text id="lemon-clock" x="120" y="112" text-anchor="middle" dominant-baseline="central" fill="' + skin.ink + '" font-size="16" font-weight="700" font-family="Microsoft YaHei UI, sans-serif"></text>');
+      parts.push('<text id="lemon-phase" x="120" y="136" text-anchor="middle" dominant-baseline="central" fill="' + skin.muted + '" font-size="9" font-family="Microsoft YaHei UI, sans-serif"></text>');
+      parts.push("</svg>");
+      return parts.join("");
+    }
+
+    function paintLemon(snap) {
+      const host = document.getElementById("lemon");
+      const key = snap.skin + ":" + snap.size + ":" + (snap.phase === "warn");
+      host.style.width = snap.size + "px";
+      host.style.height = snap.size + "px";
+      if (lemonKey !== key) {
+        lemonKey = key;
+        host.innerHTML = citrusSVG(snap.skin, snap.phase === "warn");
+      }
+      const clock = document.getElementById("lemon-clock");
+      const phase = document.getElementById("lemon-phase");
+      if (clock) clock.textContent = snap.clock;
+      if (phase) phase.textContent = PHASE[snap.phase];
+      const covered = snap.phase === "rest" || snap.lamp || snap.floatHidden;
+      host.hidden = covered;
+    }
+
+    function setText(id, value) {
+      const node = document.getElementById(id);
+      if (node) node.textContent = value;
+    }
+    function paintState(snap) {
+      setText("s-phase", PHASE[snap.phase]);
+      setText("s-clock", snap.clock);
+      setText("s-scheme", snap.schemeName + "（正式 " + snap.formal + " 分钟，这一轮 " + snap.workSeconds + " 秒 / " + snap.restSeconds + " 秒）");
+      setText("s-postpone", snap.postpones + " / " + POSTPONE_LIMIT);
+      setText("s-bright", Math.round(snap.brightness * 100) + "%");
+      setText("s-warm", Math.round(snap.warmth * 100) + "%");
+      setText("s-gains", "红 " + snap.gains[0] + "  绿 " + snap.gains[1] + "  蓝 " + snap.gains[2]);
+      setText("s-lamp", snap.lamp ? "开" : "关");
+      setText("s-skin", snap.skinName);
+      setText("s-size", String(snap.size));
+      setText("s-pause", snap.pauseText);
+      setText("s-float", snap.floatText);
+      setText("s-exercise", snap.exercise);
+      setText("s-last", snap.lastEvent);
+      document.getElementById("away").checked = session.away;
+      document.getElementById("full").checked = session.fullscreen;
+      document.querySelectorAll("[data-slider='brightness']").forEach((el) => {
+        if (document.activeElement !== el) el.value = String(Math.round(snap.brightness * 100));
+      });
+      document.querySelectorAll("[data-slider='warmth']").forEach((el) => {
+        if (document.activeElement !== el) el.value = String(Math.round(snap.warmth * 100));
+      });
+      document.querySelectorAll("[data-scheme]").forEach((el) => { el.checked = Number(el.dataset.scheme) === session.schemeIndex; });
+      document.querySelectorAll("[data-skin]").forEach((el) => { el.checked = el.dataset.skin === session.skin; });
+    }
+    function paintA(snap) {
+      const resting = snap.phase === "rest";
+      document.getElementById("rest-a").hidden = !resting;
+      document.getElementById("lamp-a").hidden = !(snap.lamp && !resting);
+      document.getElementById("show-lemon").hidden = !(snap.floatHidden && !resting && !snap.lamp);
+      if (resting) document.getElementById("settings").hidden = true;
+      setText("rest-clock-a", snap.clock);
+      setText("tip-a", resting ? snap.exercise : "");
+    }
+    function paintB(snap) {
+      const resting = snap.phase === "rest";
+      document.getElementById("rest-b").hidden = !resting;
+      document.getElementById("lamp-b").hidden = !(snap.lamp && !resting);
+      setText("rest-clock-b", snap.clock);
+      setText("tip-b", resting ? snap.exercise : "");
+      setText("b-postpone", "推迟 " + snap.postpones + " / " + POSTPONE_LIMIT);
+      const pauseBtn = document.querySelector(".controls [data-act='pause']");
+      if (pauseBtn) pauseBtn.textContent = session.manualPause ? "继续计时" : "暂停 / 继续";
+      const total = snap.workSeconds + snap.restSeconds;
+      const workEnd = snap.workSeconds / total * 100;
+      const warnStart = (snap.workSeconds - DEMO_WARN) / total * 100;
+      const warnHeight = DEMO_WARN / total * 100;
+      const restHeight = snap.restSeconds / total * 100;
+      document.getElementById("bar-work").style.top = "0%";
+      document.getElementById("bar-work").style.height = workEnd + "%";
+      document.getElementById("bar-warn").style.top = warnStart + "%";
+      document.getElementById("bar-warn").style.height = warnHeight + "%";
+      document.getElementById("bar-rest").style.top = workEnd + "%";
+      document.getElementById("bar-rest").style.height = restHeight + "%";
+      const done = resting ? snap.workSeconds + (snap.restSeconds - snap.remaining) : snap.workSeconds - snap.remaining;
+      const head = Math.max(0, Math.min(100, done / total * 100));
+      document.getElementById("playhead").style.top = head + "%";
+      setText("play-clock", snap.clock);
+      document.getElementById("lab-work").style.top = (warnStart / 2) + "%";
+      document.getElementById("lab-warn").style.top = (warnStart + warnHeight / 2) + "%";
+      document.getElementById("lab-rest").style.top = (workEnd + restHeight / 2) + "%";
+      [["g-r", "g-rt", 0], ["g-g", "g-gt", 1], ["g-b", "g-bt", 2]].forEach(([bar, label, index]) => {
+        document.getElementById(bar).style.width = snap.gains[index];
+        setText(label, snap.gains[index]);
+      });
+    }
+    function paintC(snap) {
+      const resting = snap.phase === "rest";
+      const dark = snap.lamp && !resting;
+      document.getElementById("rest-c").hidden = !resting;
+      document.getElementById("lamp-c").hidden = !dark;
+      document.getElementById("c-warn").hidden = snap.phase !== "warn";
+      setText("c-clock", snap.clock);
+      setText("c-phase", PHASE[snap.phase]);
+      setText("c-rest-clock", snap.clock);
+      setText("c-tip", resting ? snap.exercise : "");
+      const frac = snap.workSeconds === 0 ? 0 : 1 - snap.remaining / snap.workSeconds;
+      const bar = document.getElementById("c-bar");
+      bar.style.width = (Math.max(0, Math.min(1, frac)) * 100) + "%";
+      bar.style.background = snap.phase === "warn" ? "#E65100" : (snap.phase === "paused" ? "#8d8d8d" : "#2E7D32");
+      const edge = document.getElementById("edge");
+      const actions = resting
+        ? [["postpone", "推迟"], ["finish", "结束休息"]]
+        : [["rest", "现在休息"], ["pause", session.manualPause ? "继续" : "暂停"]];
+      actions.push(
+        ["lamp", snap.lamp ? "开灯" : "关灯"],
+        ["dim", "更暗"], ["bright", "更亮"], ["warmer", "更暖"], ["colder", "更冷"]
+      );
+      const signature = actions.map((item) => item.join(":")).join("|");
+      if (edge.dataset.sig !== signature) {
+        edge.dataset.sig = signature;
+        edge.innerHTML = actions.map(([act, label]) => '<button type="button" data-act="' + act + '">' + label + "</button>").join("");
+      }
+      const color = dark ? "#9a9a9a" : (resting ? "#f3e6d4" : "#2c241c");
+      edge.querySelectorAll("button").forEach((button) => { button.style.color = color; });
+    }
+    function paint() {
+      const snap = session.view();
+      document.getElementById("gamma-matrix").setAttribute("values", matrixValues(snap.brightness, snap.warmth));
+      paintState(snap);
+      paintLemon(snap);
+      paintA(snap);
+      paintB(snap);
+      paintC(snap);
+      const pauseItem = document.querySelector("#menu [data-act='pause']");
+      if (pauseItem) pauseItem.textContent = session.manualPause ? "继续计时" : "暂停计时";
+      document.querySelectorAll("#menu [data-act^='skin-']").forEach((el) => {
+        el.classList.toggle("is-on", el.dataset.act === "skin-" + session.skin);
+      });
+    }
+
+    function closeMenu() { document.getElementById("menu").hidden = true; }
+    function noteScreenOff() {
+      session.lastEvent = "双击：真机上会让显示器休眠，原型只记下这一下";
+      paint();
+    }
+    function requestPostpone() {
+      if (session.postpones >= POSTPONE_LIMIT) {
+        document.getElementById("pin").hidden = false;
+        return;
+      }
+      session.doPostpone();
+      paint();
+    }
+    function runAct(act) {
+      closeMenu();
+      if (act === "rest") session.restNow();
+      else if (act === "postpone") { requestPostpone(); return; }
+      else if (act === "pause") session.togglePause();
+      else if (act === "lamp") session.toggleLamp();
+      else if (act === "finish") session.finishRest();
+      else if (act === "zoom-in") session.setSize(session.size + 20);
+      else if (act === "zoom-out") session.setSize(session.size - 20);
+      else if (act === "settings") { document.getElementById("settings").hidden = false; session.lastEvent = "打开亮度与方案"; }
+      else if (act === "close-settings") document.getElementById("settings").hidden = true;
+      else if (act === "shutdown") session.lastEvent = "正式程序会打开定时关机。原型不会关机";
+      else if (act === "hide") { session.floatHidden = true; session.lastEvent = "隐藏了柠檬片"; }
+      else if (act === "show-lemon") { session.floatHidden = false; session.lastEvent = "柠檬片回到桌角"; }
+      else if (act === "quit") session.lastEvent = "正式程序会退出。原型留在这一页";
+      else if (act === "preview") session.setScreen(0.7, 0.75, "看屏幕效果：亮度 70%，暖色 75%");
+      else if (act === "reset-screen") session.setScreen(1, 0, "恢复原色");
+      else if (act === "jump-warn") session.jumpToWarn();
+      else if (act === "dim") session.setScreen(session.brightness - 0.1, session.warmth, "更暗了一档");
+      else if (act === "bright") session.setScreen(session.brightness + 0.1, session.warmth, "更亮了一档");
+      else if (act === "warmer") session.setScreen(session.brightness, session.warmth + 0.15, "更暖了一档");
+      else if (act === "colder") session.setScreen(session.brightness, session.warmth - 0.15, "暖色退了一档");
+      else if (act.indexOf("skin-") === 0) session.setSkin(act.slice(5));
+      paint();
+    }
+
+    function showVariant(key, announce) {
+      variant = key;
+      document.querySelectorAll(".variant").forEach((el) => el.classList.toggle("is-on", el.dataset.variant === key));
+      document.getElementById("variant-label").textContent = key + " — " + NAMES[key];
+      document.title = "护眼计时原型 ?variant=" + key;
+      try {
+        const url = new URL(location.href);
+        url.searchParams.set("variant", key);
+        history.replaceState(null, "", url);
+      } catch (error) { /* 本地文件写不了地址栏时，标题里仍有变体名 */ }
+      closeMenu();
+      if (announce) {
+        session.lastEvent = "切换到 " + key + " — " + NAMES[key];
+        console.log("--- " + key + " — " + NAMES[key] + " ---");
+        console.log(session.snapshot());
+      }
+      paint();
+    }
+    function cycle(step) {
+      const keys = ["A", "B", "C"];
+      showVariant(keys[(keys.indexOf(variant) + step + keys.length) % keys.length], true);
+    }
+
+    function buildMenu() {
+      const rows = [
+        ["立即休息", "rest"], ["推迟休息", "postpone"], ["暂停计时", "pause"], ["关灯", "lamp"], null,
+        ["青柠", "skin-green"], ["橙片", "skin-orange"], ["放大", "zoom-in"], ["缩小", "zoom-out"], null,
+        ["亮度与方案", "settings"], ["定时关机", "shutdown"], ["隐藏悬浮窗", "hide"], ["退出", "quit"]
+      ];
+      document.getElementById("menu").innerHTML = rows.map((row) => row ? '<button type="button" data-act="' + row[1] + '">' + row[0] + "</button>" : "<hr>").join("");
+    }
+
+    const lemon = document.getElementById("lemon");
+    let drag = null;
+    lemon.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      const parent = lemon.parentElement.getBoundingClientRect();
+      const box = lemon.getBoundingClientRect();
+      lemon.style.right = "auto";
+      lemon.style.left = (box.left - parent.left) + "px";
+      lemon.style.top = (box.top - parent.top) + "px";
+      drag = { dx: event.clientX - box.left, dy: event.clientY - box.top, moved: false };
+      lemon.setPointerCapture(event.pointerId);
+    });
+    lemon.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const parent = lemon.parentElement.getBoundingClientRect();
+      let x = event.clientX - parent.left - drag.dx;
+      let y = event.clientY - parent.top - drag.dy;
+      if (Math.abs(event.movementX) + Math.abs(event.movementY) > 2) drag.moved = true;
+      x = Math.max(0, Math.min(parent.width - lemon.offsetWidth, x));
+      y = Math.max(0, Math.min(parent.height - lemon.offsetHeight, y));
+      lemon.style.left = x + "px";
+      lemon.style.top = y + "px";
+    });
+    lemon.addEventListener("pointerup", () => {
+      if (drag && drag.moved) { session.lastEvent = "拖动了柠檬片"; paint(); }
+      drag = null;
+    });
+    lemon.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      session.setSize(session.size + (event.deltaY < 0 ? 20 : -20));
+      paint();
+    }, { passive: false });
+    lemon.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      const menu = document.getElementById("menu");
+      menu.hidden = false;
+      const width = menu.offsetWidth;
+      const height = menu.offsetHeight;
+      let x = event.clientX;
+      let y = event.clientY;
+      if (x + width > window.innerWidth) x = window.innerWidth - width - 8;
+      if (y + height > window.innerHeight) y = window.innerHeight - height - 8;
+      menu.style.left = Math.max(8, x) + "px";
+      menu.style.top = Math.max(8, y) + "px";
+    });
+
+    let lampTimer = 0;
+    function bindLamp(id) {
+      const node = document.getElementById(id);
+      node.addEventListener("click", () => {
+        lampTimer = window.setTimeout(() => { session.toggleLamp(); paint(); }, 280);
+      });
+      node.addEventListener("dblclick", (event) => {
+        window.clearTimeout(lampTimer);
+        event.preventDefault();
+        noteScreenOff();
+      });
+    }
+    bindLamp("lamp-a");
+    bindLamp("lamp-b");
+    bindLamp("lamp-c");
+    document.getElementById("rest-a").addEventListener("dblclick", (event) => {
+      if (event.target.closest("button")) return;
+      noteScreenOff();
+    });
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-act]");
+      if (!button || button.closest("#menu") && event.type !== "click") return;
+      if (button.closest("#lamp-a, #lamp-b, #lamp-c")) return;
+      runAct(button.dataset.act);
+    });
+    document.addEventListener("pointerdown", (event) => {
+      const menu = document.getElementById("menu");
+      if (!menu.hidden && !menu.contains(event.target) && !lemon.contains(event.target)) closeMenu();
+    });
+    document.addEventListener("input", (event) => {
+      const el = event.target;
+      if (!(el instanceof HTMLInputElement)) return;
+      if (el.dataset.slider === "brightness") session.setScreen(Number(el.value) / 100, session.warmth, "调节了亮度");
+      else if (el.dataset.slider === "warmth") session.setScreen(session.brightness, Number(el.value) / 100, "调节了暖色");
+      else return;
+      paint();
+    });
+    document.addEventListener("change", (event) => {
+      const el = event.target;
+      if (el.dataset && el.dataset.scheme != null) session.setScheme(Number(el.dataset.scheme));
+      else if (el.dataset && el.dataset.skin) session.setSkin(el.dataset.skin);
+      else if (el.id === "away") {
+        session.away = el.checked;
+        session.lastEvent = session.away ? "假装一段时间没有键鼠" : "人回来了";
+      } else if (el.id === "full") {
+        session.fullscreen = el.checked;
+        session.lastEvent = session.fullscreen ? "假装前台是全屏程序" : "全屏程序关掉了";
+      } else return;
+      paint();
+    });
+    document.addEventListener("keydown", (event) => {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (document.activeElement && document.activeElement.isContentEditable)) return;
+      if (event.key === "ArrowLeft") { event.preventDefault(); cycle(-1); }
+      else if (event.key === "ArrowRight") { event.preventDefault(); cycle(1); }
+    });
+    document.getElementById("prev").addEventListener("click", () => cycle(-1));
+    document.getElementById("next").addEventListener("click", () => cycle(1));
+    document.getElementById("pin-yes").addEventListener("click", () => {
+      document.getElementById("pin").hidden = true;
+      session.doPostpone();
+      paint();
+    });
+    document.getElementById("pin-no").addEventListener("click", () => {
+      document.getElementById("pin").hidden = true;
+      session.lastEvent = "推迟次数用完，这一下取消了";
+      paint();
+    });
+
+    buildMenu();
+    const requested = (new URLSearchParams(location.search).get("variant") || "A").toUpperCase();
+    showVariant(NAMES[requested] ? requested : "A", false);
+    console.log("问题：同一轮计时、变暗、变暖和休息遮罩，用哪种布局更能看见效果？");
+    console.log(session.snapshot());
+    window.setInterval(() => { session.advance(); paint(); }, 200);
+  </script>
+</body>
+</html>
