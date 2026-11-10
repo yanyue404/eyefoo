@@ -29,10 +29,10 @@ from eyeguard import platform as platform_win
 
 
 class App:
-    def __init__(self, smoke: bool = False) -> None:
+    def __init__(self, smoke: bool = False, debug: bool = False) -> None:
         self.smoke = smoke
         self.settings = load_settings()
-        _configure_log()
+        _configure_log(debug)
         scheme = self.settings.scheme()
         self.engine = Engine(
             scheme.work_minutes * 60,
@@ -478,13 +478,14 @@ def _hex_rgb(color: str) -> tuple[int, int, int]:
     return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
 
 
-def _configure_log() -> None:
+def _configure_log(debug: bool = False) -> None:
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    # --debug：日志直接输出到控制台，级别 DEBUG
+    target = {} if debug else {"filename": LOG_PATH, "encoding": "utf-8"}
     logging.basicConfig(
-        filename=LOG_PATH,
-        level=logging.INFO,
+        **target,
+        level=logging.DEBUG if debug else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
-        encoding="utf-8",
         force=True,
     )
 
@@ -492,8 +493,9 @@ def _configure_log() -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="护眼计时")
     parser.add_argument("--smoke", action="store_true", help="打开界面后立即退出，供自检使用")
+    parser.add_argument("--debug", action="store_true", help="日志输出到控制台，级别 DEBUG")
     args = parser.parse_args(argv)
-    App(smoke=args.smoke).run()
+    App(smoke=args.smoke, debug=args.debug).run()
 
 
 if __name__ == "__main__":

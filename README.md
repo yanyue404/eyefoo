@@ -47,7 +47,23 @@ python run.py
 
 右键柠檬片可以休息、推迟、暂停、关灯、切换皮肤、放大缩小、打开设置或退出。皮肤有青柠和橙片。滚轮或设置里的“大小”可以调整柠檬片，范围是 160 到 360。这些都会记在 `data/config.json`。
 
-打包和 macOS、Linux 的做法写在 `DESIGN.md`。Windows 目录版可以用 `packaging\build_windows.ps1` 打出来。
+打包和 macOS、Linux 的做法写在 `DESIGN.md`。
+
+常用命令统一走 `dev.ps1`：
+
+| 命令 | 作用 |
+| --- | --- |
+| `.\dev.ps1 setup` | 安装依赖 |
+| `.\dev.ps1 run` | 运行 |
+| `.\dev.ps1 debug` | 运行，DEBUG 日志直接打到控制台 |
+| `.\dev.ps1 smoke` / `test` | 冒烟 / 单元测试 |
+| `.\dev.ps1 build` | PyInstaller 目录版 `dist\EyeGuard\EyeGuard.exe` |
+| `.\dev.ps1 zip` | 便携版 `dist\EyeGuard-<版本>-win64.zip` |
+| `.\dev.ps1 installer` | 安装包 `dist\EyeGuard-Setup-<版本>.exe`，需要先装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)；安装到用户目录，免管理员 |
+| `.\dev.ps1 release` | 打 zip 并发布 GitHub Release `v<版本>`（有安装包时一并上传）。需要 `gh` 且已 `gh auth login` |
+| `.\dev.ps1 clean` | 删除 `build`、`dist` |
+
+版本号取自 `eyeguard/__init__.py` 的 `__version__`。
 
 菜单打开期间，倒计时不会去改这个菜单。之前每 0.2 秒刷新一次置顶，菜单按钮会跟着闪，点不中。
 

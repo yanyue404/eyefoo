@@ -1,4 +1,4 @@
-"""从项目根目录启动。用法：python run.py [--smoke]"""
+"""从项目根目录启动。用法：python run.py [--smoke] [--debug]"""
 
 from eyeguard.app import main
 
